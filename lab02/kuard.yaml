@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kuard-dep
+  namespace: suu
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kuard
+  template:
+    metadata:
+      labels:
+        app: kuard
+    spec:
+      containers:
+        - name: kuard
+          image: jmutai/kuard-amd64:blue
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthy
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kuard-srv
+  namespace: suu
+spec:
+  type: LoadBalancer
+  selector:
+    app: kuard
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: kuard-hpa
+  namespace: suu
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: kuard-dep
+  minReplicas: 5
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 5
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kuard-job
+  namespace: suu
+spec:
+  template:
+    spec:
+      containers:
+        - name: query-client
+          image: busybox
+          command:
+            [
+              "sh",
+              "-c",
+              "for i in 1 2 3 4 5; do wget -qO- http://kuard-srv; sleep 1; done",
+            ]
+        - name: load-generator
+          image: busybox
+          command:
+            ["sh", "-c", "while true; do wget -qO- http://kuard-srv; done"]
+      restartPolicy: Never
