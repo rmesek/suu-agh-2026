@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: calculator-mcp-code
+  namespace: mcp-lab
+data:
+  server.py: |
+    from mcp.server.fastmcp import FastMCP
+
+    mcp = FastMCP("calculator")
+
+    @mcp.tool()
+    def add(a: float, b: float) -> str:
+        """
+        Calculator MCP tool
+
+        Add two numbers."""
+        return f"{a} + {b} = {a + b}"
+
+    @mcp.tool()
+    def subtract(a: float, b: float) -> str:
+        """
+        Calculator MCP tool
+        Subtract b from a."""
+        return f"{a} - {b} = {a - b}"
+
+    @mcp.tool()
+    def multiply(a: float, b: float) -> str:
+        """
+        Calculator MCP tool
+        Multiply two numbers."""
+        return f"{a} * {b} = {a * b}"
+
+    @mcp.tool()
+    def divide(a: float, b: float) -> str:
+        """
+        Calculator MCP tool
+
+        Divide a by b. Refuses division by zero."""
+        if b == 0:
+            return "Error: division by zero is not allowed."
+        return f"{a} / {b} = {a / b}"
+
+
+    if __name__ == "__main__":
+        mcp.run(transport="stdio")
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calculator-mcp
+  namespace: mcp-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: calculator-mcp
+  template:
+    metadata:
+      labels:
+        app: calculator-mcp
+    spec:
+      containers:
+        - name: calculator-mcp
+          image: python:3.11-slim
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - |
+              echo "Installing MCP dependencies..."
+              pip install --no-cache-dir "mcp[cli]" mcpo
+
+              echo "Starting FastMCP calculator through mcpo..."
+              mcpo --host 0.0.0.0 --port 8000 -- python /app/server.py
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "768Mi"
+          volumeMounts:
+            - name: calculator-code
+              mountPath: /app/server.py
+              subPath: server.py
+      volumes:
+        - name: calculator-code
+          configMap:
+            name: calculator-mcp-code
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: calculator-mcp
+  namespace: mcp-lab
+spec:
+  type: ClusterIP
+  selector:
+    app: calculator-mcp
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000

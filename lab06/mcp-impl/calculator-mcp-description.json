@@ -1,0 +1,16 @@
+[
+  {
+    "type": "openapi",
+    "url": "http://calculator-mcp:8000",
+    "spec_type": "url",
+    "spec": "",
+    "path": "/openapi.json",
+    "auth_type": "none",
+    "key": "",
+    "info": {
+      "id": "calculator",
+      "name": "calculator",
+      "description": "Calculator MCP server"
+    }
+  }
+]
