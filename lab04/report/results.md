@@ -83,55 +83,97 @@ shippingservice-v3-569458c949-ztx7z         2/2     Running   0             65s
 ## Task 2 – Observability, service metrics
 
 1. How many ops are being currently processed by the application?  
-  * 33.1 ops/s
-2. What is the global success rate?
-  * 100%
-3. Are there any request errors occurring in the application at the moment? How do you
-check that?
-  * 0 ops/s (4xxs + 5xxs)
-4. Which application service processes the most requests? What is its p99 latency and suc-
-cess rate?
-  * currencyservice.default.svc.cluster.local (4.84 ms, 100.00%)
-5. What is the current CPU and memory usage by Istio Pilot?
-  * 131 MiB Resident Memory
-  * 0.00227 CPU Discovery (container)
-6. Does Istio Pilot encouteres any errors at the moment?
-  * 0 Pilot Errors
+    33.1 ops/s
+2. What is the global success rate?  
+    100%
+3. Are there any request errors occurring in the application at the moment? How do you check that?  
+    0 ops/s (4xxs + 5xxs)
+4. Which application service processes the most requests? What is its p99 latency and success rate?  
+    currencyservice.default.svc.cluster.local (4.84 ms, 100.00%)
+5. What is the current CPU and memory usage by Istio Pilot?  
+    131 MiB Resident Memory  
+    0.00227 CPU Discovery (container)
+6. Does Istio Pilot encouteres any errors at the moment?  
+    0 Pilot Errors
 
 ## Task 3 – Observability, distributed tracing
 There is only `jaeger-query` in Service dropdown.
-1. When the request started (date, time)?
-  * Today, 6:38:11 pm
-2. Total request duration?
-  * 2.07ms
-3. Request protocol, method and status code?
-  * Protocol: HTTP (`net/http` component)
-  * Method: GET
-  * Status Code: 200
-4. Duration of nested span?
-  * No nested spans
+
+1. When the request started (date, time)?  
+    Today, 6:38:11 pm
+2. Total request duration?  
+    2.07ms
+3. Request protocol, method and status code?  
+    Protocol: HTTP (`net/http` component)  
+    Method: GET  
+    Status Code: 200
+4. Duration of nested span?  
+    No nested spans
 
 ## Task 4 – Observability, mesh topology
 
 ![Kiali App Graph](img/task4.png)
 
-1. Is the inter-service communication healthy? How do you check that?
-  * Yes, all connections are green
-2. What is the entry-point service of the application?
-  * `frontend` service
-3. Which services communicate with the currency service?
-  * `frontend`, `checkoutservice`
-4. Which services communicate with the productcatalog service?
-  * `frontend`, `checkoutservice`, `recommendationservice`
-5. Which services does the checkout service communicate with?
-  * `cartservice`, `currencyservice`, `emailservice`, `paymentservice`, `productcatalogservice`, `shippingservice`
-6. What is the request volume (ops) for currency service? What are its success and error rates?
-  * RPS: 7.07 (100.00% Success, 0.00% Errors)
-7. What is the request volume (ops) for payment service? What are its success and error rates?
-  * RPS: 0.13 (100.00% Success, 0.00% Errors)
-8. What protocol is used on the communication path between the frontend and the recommendation service?
-  * grpc
-9. What protocol is used on the communication path between the cart service and the redis service?
-  * tcp
+1. Is the inter-service communication healthy? How do you check that?  
+    Yes, all connections are green
+2. What is the entry-point service of the application?  
+    `frontend` service
+3. Which services communicate with the currency service?  
+    `frontend`, `checkoutservice`
+4. Which services communicate with the productcatalog service?  
+    `frontend`, `checkoutservice`, `recommendationservice`
+5. Which services does the checkout service communicate with?  
+    `cartservice`, `currencyservice`, `emailservice`, `paymentservice`, `productcatalogservice`, `shippingservice`
+6. What is the request volume (ops) for currency service? What are its success and error rates?  
+    RPS: 7.07 (100.00% Success, 0.00% Errors)
+7. What is the request volume (ops) for payment service? What are its success and error rates?  
+    RPS: 0.13 (100.00% Success, 0.00% Errors)
+8. What protocol is used on the communication path between the frontend and the recommendation service?  
+    grpc
+9. What protocol is used on the communication path between the cart service and the redis service?  
+    tcp
 
 ## Task 5 – Traffic management, ingress gateway
+
+* VirtualService Policy  
+    "First, the policy selects the gateway to configure (frontend-gateway). Then, it configures the gateway to route the entire HTTP traffic to the frontend service onto port 80."
+
+* Gateway Policy  
+    "Opens port 80 for HTTP traffic for all destination services (Hosts: *) discovered in the mesh. The Selector binds the configuration to the specific Ingress instance."
+
+## Task 6 – Traffic management, traffic routing
+
+1. Apply DestinationRule and VirtualService policies to all services deployed in the service mesh regardless of how many versions each service provides. Route the traffic to version v1 of each service.  
+    ```powershell
+    > kubectl -n default apply -f templates/release/istio/shippingservice-dr.yaml
+    > kubectl -n default apply -f templates/release/istio/shippingservice-vs.yaml
+    ```
+
+2. Route productcatelog traffic to version v2.
+    ```powershell
+    > kubectl -n default apply -f templates/release/istio/productcatalogservice-vs-3.yaml
+    ```
+
+![Kiali App Graph](img/task6.png)
+
+## Task 7 – Traffic management, traffic shifting
+
+```powershell
+> kubectl -n default apply -f templates/release/istio/productcatalogservice-vs-1.yaml
+```
+
+![Kiali App Graph](img/task7-1.png)
+
+![Grafana Istio Mesh Dashboard](img/task7-2.png)
+
+```powershell
+> kubectl -n default apply -f templates/release/istio/productcatalogservice-vs-2.yaml
+```
+
+```powershell
+> kubectl -n default apply -f templates/release/istio/productcatalogservice-vs-3.yaml
+```
+
+## Task 8 – Traffic management, traffic shifting
+
+![Error Message from the Website](img/task8.png)
